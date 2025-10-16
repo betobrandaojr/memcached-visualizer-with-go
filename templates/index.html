@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memcached Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e0e6ed;
+        }
+        .screen {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .connection-container {
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        .main-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 10px 20px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 10px;
+            flex-shrink: 0;
+        }
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 300;
+            color: #64b5f6;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        .header p {
+            color: #b0bec5;
+            margin-top: 10px;
+            font-size: 1.1rem;
+        }
+        .footer {
+            flex-shrink: 0;
+            margin-top: 15px;
+        }
+        .connection-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 12px;
+            border: 1px solid rgba(100, 181, 246, 0.1);
+        }
+        .connection-info span {
+            color: #81c784;
+            font-weight: 500;
+        }
+        .card {
+            background: rgba(30, 41, 59, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            border: 1px solid rgba(100, 181, 246, 0.1);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .connection-card {
+            margin: 0 auto;
+        }
+        .card h2 {
+            color: #64b5f6;
+            margin-bottom: 15px;
+            font-weight: 600;
+            font-size: 1.2rem;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #b0bec5;
+            font-size: 0.9rem;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #37474f;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            background: rgba(55, 71, 79, 0.5);
+            color: #e0e6ed;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #64b5f6;
+            box-shadow: 0 0 0 3px rgba(100, 181, 246, 0.1);
+            background: rgba(55, 71, 79, 0.8);
+        }
+        input[type="text"]::placeholder {
+            color: #78909c;
+        }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #42a5f5, #1e88e5);
+            color: white;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #1e88e5, #1565c0);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(30, 136, 229, 0.3);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #66bb6a, #43a047);
+            color: white;
+        }
+        .btn-success:hover {
+            background: linear-gradient(135deg, #43a047, #388e3c);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(67, 160, 71, 0.3);
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #ef5350, #e53935);
+            color: white;
+        }
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #e53935, #d32f2f);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(229, 57, 53, 0.3);
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #78909c, #607d8b);
+            color: white;
+            padding: 6px 12px;
+            font-size: 12px;
+            width: auto;
+            min-width: 100px;
+        }
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, #607d8b, #546e7a);
+            transform: translateY(-1px);
+        }
+        button:disabled {
+            background: #455a64;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 500;
+            animation: slideIn 0.3s ease;
+        }
+        .success {
+            background: rgba(76, 175, 80, 0.1);
+            color: #81c784;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+        .error {
+            background: rgba(244, 67, 54, 0.1);
+            color: #e57373;
+            border: 1px solid rgba(244, 67, 54, 0.3);
+        }
+        .hidden {
+            display: none;
+        }
+        .crud-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+            grid-template-rows: 1fr;
+            gap: 25px;
+            flex: 1;
+            height: 100%;
+        }
+        .result div {
+            margin-bottom: 8px;
+            padding: 8px;
+            background: rgba(100, 181, 246, 0.1);
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .crud-item {
+            background: rgba(55, 71, 79, 0.3);
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid rgba(100, 181, 246, 0.1);
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .crud-item h3 {
+            color: #90caf9;
+            margin-bottom: 18px;
+            font-weight: 500;
+            font-size: 1.1rem;
+            text-align: center;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(100, 181, 246, 0.2);
+            flex-shrink: 0;
+        }
+        .result {
+            background: rgba(55, 71, 79, 0.5);
+            border: 1px solid rgba(100, 181, 246, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 12px;
+            color: #b0bec5;
+            font-size: 14px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .result strong {
+            color: #64b5f6;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @media (max-width: 1024px) {
+            .crud-grid {
+                grid-template-columns: repeat(2, 1fr);
+                grid-template-rows: repeat(3, 1fr);
+            }
+        }
+        @media (max-width: 768px) {
+            .crud-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: repeat(5, auto);
+            }
+            .header h1 {
+                font-size: 2rem;
+            }
+            .card {
+                padding: 15px;
+            }
+            .main-container {
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="connectionScreen" class="screen">
+        <div class="connection-container">
+            <div class="header">
+                <h1>Memcached Management</h1>
+                <p>Connect to your Memcached server</p>
+            </div>
+            <div class="card connection-card">
+                <form id="connectionForm">
+                    <div class="form-group">
+                        <label for="url">Memcached URL:</label>
+                        <input type="text" id="url" name="url" placeholder="localhost:11211" required>
+                    </div>
+                    <button type="submit" id="connectBtn" class="btn-primary">Connect</button>
+                </form>
+                <div id="connectionMessage"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="crudScreen" class="screen hidden">
+        <div class="main-container">
+            <div class="header">
+                <h1>Memcached Management</h1>
+            </div>
+
+            <div class="card">
+                <h2>CRUD Operations</h2>
+                
+                <div class="crud-grid">
+                    <div class="crud-item">
+                        <h3>Create/Update</h3>
+                        <form id="setForm">
+                            <div class="form-group">
+                                <label for="setKey">Key:</label>
+                                <input type="text" id="setKey" placeholder="user:123" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="setValue">Value:</label>
+                                <input type="text" id="setValue" placeholder='{"name":"John"}' required>
+                            </div>
+                            <button type="submit" class="btn-success">Save</button>
+                        </form>
+                        <div id="setMessage"></div>
+                    </div>
+
+                    <div class="crud-item">
+                        <h3>Search</h3>
+                        <form id="getForm">
+                            <div class="form-group">
+                                <label for="getKey">Key:</label>
+                                <input type="text" id="getKey" placeholder="user:123" required>
+                            </div>
+                            <button type="submit" class="btn-primary">Search</button>
+                        </form>
+                        <div id="getResult"></div>
+                    </div>
+
+                    <div class="crud-item">
+                        <h3>Multiple Search</h3>
+                        <form id="getMultipleForm">
+                            <div class="form-group">
+                                <label for="getKeys">Keys (comma separated):</label>
+                                <input type="text" id="getKeys" placeholder="user:1,user:2,config:timeout" required>
+                            </div>
+                            <button type="submit" class="btn-primary">Search All</button>
+                        </form>
+                        <div id="getMultipleResult"></div>
+                    </div>
+
+                    <div class="crud-item">
+                        <h3>Edit</h3>
+                        <form id="editForm">
+                            <div class="form-group">
+                                <label for="editKey">Key to edit:</label>
+                                <input type="text" id="editKey" placeholder="user:123" required>
+                            </div>
+                            <button type="button" id="loadEditBtn" class="btn-primary">Load</button>
+                            <div class="form-group" id="editValueGroup" style="display:none;">
+                                <label for="editValue">New value:</label>
+                                <input type="text" id="editValue" required>
+                                <button type="submit" class="btn-success">Save Changes</button>
+                            </div>
+                        </form>
+                        <div id="editMessage"></div>
+                    </div>
+
+                    <div class="crud-item">
+                        <h3>Delete</h3>
+                        <form id="deleteForm">
+                            <div class="form-group">
+                                <label for="deleteKey">Key:</label>
+                                <input type="text" id="deleteKey" placeholder="user:123" required>
+                            </div>
+                            <button type="submit" class="btn-danger">Delete</button>
+                        </form>
+                        <div id="deleteMessage"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <div class="connection-info">
+                    <span id="connectedUrl"></span>
+                    <button id="disconnectBtn" class="btn-secondary">Disconnect</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('connectionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const url = document.getElementById('url').value;
+            const connectBtn = document.getElementById('connectBtn');
+            const messageDiv = document.getElementById('connectionMessage');
+            
+            messageDiv.innerHTML = '';
+            connectBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/connect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    messageDiv.innerHTML = `<div class="message success">${result.message}</div>`;
+                    setTimeout(() => {
+                        document.getElementById('connectionScreen').classList.add('hidden');
+                        document.getElementById('crudScreen').classList.remove('hidden');
+                        document.getElementById('connectedUrl').textContent = `Connected: ${url}`;
+                    }, 1000);
+                } else {
+                    messageDiv.innerHTML = `<div class="message error">${result.error}</div>`;
+                }
+            } catch (error) {
+                messageDiv.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
+            } finally {
+                connectBtn.disabled = false;
+            }
+        });
+
+        document.getElementById('disconnectBtn').addEventListener('click', function() {
+            document.getElementById('crudScreen').classList.add('hidden');
+            document.getElementById('connectionScreen').classList.remove('hidden');
+            document.getElementById('url').value = '';
+            document.getElementById('connectionMessage').innerHTML = '';
+        });
+
+        document.getElementById('setForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const key = document.getElementById('setKey').value;
+            const value = document.getElementById('setValue').value;
+            const messageDiv = document.getElementById('setMessage');
+            
+            if (!key || !value) {
+                messageDiv.innerHTML = '<div class="message error">Please fill in this field</div>';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/set', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key, value })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    messageDiv.innerHTML = `<div class="message success">${result.message}</div>`;
+                    document.getElementById('setKey').value = '';
+                    document.getElementById('setValue').value = '';
+                } else {
+                    messageDiv.innerHTML = `<div class="message error">${result.error}</div>`;
+                }
+            } catch (error) {
+                messageDiv.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
+            }
+        });
+
+        document.getElementById('getForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const key = document.getElementById('getKey').value;
+            const resultDiv = document.getElementById('getResult');
+            
+            if (!key) {
+                resultDiv.innerHTML = '<div class="message error">Please fill in this field</div>';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/get', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.items) {
+                    const item = result.items[0];
+                    resultDiv.innerHTML = `<div class="result"><strong>Key:</strong> ${item.key}<br><strong>Value:</strong> ${item.value}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="message error">${result.error}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
+            }
+        });
+
+        document.getElementById('deleteForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const key = document.getElementById('deleteKey').value;
+            const messageDiv = document.getElementById('deleteMessage');
+            
+            if (!key) {
+                messageDiv.innerHTML = '<div class="message error">Please fill in this field</div>';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    messageDiv.innerHTML = `<div class="message success">${result.message}</div>`;
+                    document.getElementById('deleteKey').value = '';
+                } else {
+                    messageDiv.innerHTML = `<div class="message error">${result.error}</div>`;
+                }
+            } catch (error) {
+                messageDiv.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
+            }
+        });
+
+        document.getElementById('getMultipleForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const keysInput = document.getElementById('getKeys').value;
+            const keys = keysInput.split(',').map(k => k.trim()).filter(k => k);
+            const resultDiv = document.getElementById('getMultipleResult');
+            
+            if (!keysInput || keys.length === 0) {
+                resultDiv.innerHTML = '<div class="message error">Please fill in this field</div>';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/getMultiple', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ keys })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.items) {
+                    let html = '<div class="result">';
+                    result.items.forEach(item => {
+                        html += `<div><strong>${item.key}:</strong> ${item.value}</div>`;
+                    });
+                    html += '</div>';
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML = `<div class="message error">${result.error}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
+            }
+        });
+
+        document.getElementById('loadEditBtn').addEventListener('click', async function() {
+            const key = document.getElementById('editKey').value;
+            const messageDiv = document.getElementById('editMessage');
+            const valueGroup = document.getElementById('editValueGroup');
+            
+            messageDiv.innerHTML = '';
+            
+            if (!key) {
+                messageDiv.innerHTML = '<div class="message error">Please fill in this field</div>';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/get', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.items) {
+                    document.getElementById('editValue').value = result.items[0].value;
+                    valueGroup.style.display = 'block';
+                } else {
+                    messageDiv.innerHTML = `<div class="message error">${result.error}</div>`;
+                    valueGroup.style.display = 'none';
+                }
+            } catch (error) {
+                messageDiv.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
+                valueGroup.style.display = 'none';
+            }
+        });
+
+        document.getElementById('editForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const key = document.getElementById('editKey').value;
+            const value = document.getElementById('editValue').value;
+            const messageDiv = document.getElementById('editMessage');
+            
+            messageDiv.innerHTML = '';
+            
+            try {
+                const response = await fetch('/set', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key, value })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    messageDiv.innerHTML = `<div class="message success">${result.message}</div>`;
+                    document.getElementById('editKey').value = '';
+                    document.getElementById('editValue').value = '';
+                    document.getElementById('editValueGroup').style.display = 'none';
+                } else {
+                    messageDiv.innerHTML = `<div class="message error">${result.error}</div>`;
+                }
+            } catch (error) {
+                messageDiv.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
+            }
+        });
+
+
+    </script>
+</body>
+</html>
