@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
 	"memcached-management/config"
 	"memcached-management/handlers"
 	"memcached-management/services"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -21,7 +22,6 @@ func main() {
 	r.POST("/getMultiple", handler.HandleGetMultiple)
 	r.POST("/delete", handler.HandleDelete)
 	r.POST("/flush", handler.HandleFlush)
-	r.POST("/listKeys", handler.HandleListKeys)
 
 	logger.Info("Server starting on http://localhost:5000")
 	r.Run(":5000")

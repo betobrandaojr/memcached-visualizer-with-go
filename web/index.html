@@ -197,9 +197,9 @@
         }
         .crud-grid {
             display: grid;
-            grid-template-columns: repeat(6, 1fr);
+            grid-template-columns: repeat(7, minmax(0, 1fr));
             grid-template-rows: 1fr;
-            gap: 20px;
+            gap: 15px;
             flex: 1;
             height: 100%;
         }
@@ -213,12 +213,21 @@
         .crud-item {
             background: rgba(55, 71, 79, 0.3);
             border-radius: 12px;
-            padding: 20px;
+            padding: 15px;
             border: 1px solid rgba(100, 181, 246, 0.1);
             display: flex;
             flex-direction: column;
             min-height: 0;
-            min-width: 200px;
+            min-width: 0;
+        }
+        .crud-item form {
+            min-height: 120px;
+        }
+        .crud-item .form-group:last-of-type {
+            margin-bottom: 16px;
+        }
+        .crud-item button {
+            margin-top: 0;
         }
         .crud-item h3 {
             color: #90caf9;
@@ -240,6 +249,7 @@
             font-size: 14px;
             overflow-y: auto;
             flex: 1;
+            max-height: 300px;
         }
         .result strong {
             color: #64b5f6;
@@ -254,16 +264,29 @@
                 transform: translateY(0);
             }
         }
+        .search-box {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #37474f;
+            border-radius: 4px;
+            background: rgba(55, 71, 79, 0.5);
+            color: #e0e6ed;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+        .search-box::placeholder {
+            color: #78909c;
+        }
         @media (max-width: 1024px) {
             .crud-grid {
                 grid-template-columns: repeat(2, 1fr);
-                grid-template-rows: repeat(3, 1fr);
+                grid-template-rows: repeat(4, 1fr);
             }
         }
         @media (max-width: 768px) {
             .crud-grid {
                 grid-template-columns: 1fr;
-                grid-template-rows: repeat(6, auto);
+                grid-template-rows: repeat(7, auto);
             }
             .header h1 {
                 font-size: 2rem;
@@ -308,7 +331,7 @@
                 
                 <div class="crud-grid">
                     <div class="crud-item">
-                        <h3>Create/Update</h3>
+                        <h3>Create New</h3>
                         <form id="setForm">
                             <div class="form-group">
                                 <label for="setKey">Key:</label>
@@ -321,6 +344,16 @@
                             <button type="submit" class="btn-success">Save</button>
                         </form>
                         <div id="setMessage"></div>
+                    </div>
+
+                    <div class="crud-item">
+                        <h3>List All Keys</h3>
+                        <form id="listKeysForm">
+                            <p style="color: #b0bec5; margin-bottom: 15px; font-size: 14px;">Show all keys stored in cache</p>
+                            <button type="submit" class="btn-primary">List Keys</button>
+                        </form>
+                        <input type="text" id="keySearchBox" class="search-box" placeholder="Search keys..." style="display:none;">
+                        <div id="listKeysResult"></div>
                     </div>
 
                     <div class="crud-item">
@@ -344,6 +377,7 @@
                             </div>
                             <button type="submit" class="btn-primary">Search All</button>
                         </form>
+                        <input type="text" id="multipleSearchBox" class="search-box" placeholder="Filter results..." style="display:none;">
                         <div id="getMultipleResult"></div>
                     </div>
 
@@ -453,6 +487,21 @@
             }
             
             try {
+                // Check if key already exists
+                const checkResponse = await fetch('/get', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key })
+                });
+                
+                const checkResult = await checkResponse.json();
+                
+                if (checkResult.success) {
+                    messageDiv.innerHTML = `<div class="message error">Key "${key}" already exists! Use Edit to update it.</div>`;
+                    return;
+                }
+                
+                // Key doesn't exist, proceed with creation
                 const response = await fetch('/set', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -541,9 +590,11 @@
             const keysInput = document.getElementById('getKeys').value;
             const keys = keysInput.split(',').map(k => k.trim()).filter(k => k);
             const resultDiv = document.getElementById('getMultipleResult');
+            const searchBox = document.getElementById('multipleSearchBox');
             
             if (!keysInput || keys.length === 0) {
                 resultDiv.innerHTML = '<div class="message error">Please fill in this field</div>';
+                searchBox.style.display = 'none';
                 return;
             }
             
@@ -557,17 +608,21 @@
                 const result = await response.json();
                 
                 if (result.success && result.items) {
+                    multipleResults = result.items;
                     let html = '<div class="result">';
                     result.items.forEach(item => {
                         html += `<div><strong>${item.key}:</strong> ${item.value}</div>`;
                     });
                     html += '</div>';
                     resultDiv.innerHTML = html;
+                    searchBox.style.display = 'block';
                 } else {
                     resultDiv.innerHTML = `<div class="message error">${result.error}</div>`;
+                    searchBox.style.display = 'none';
                 }
             } catch (error) {
                 resultDiv.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
+                searchBox.style.display = 'none';
             }
         });
 
@@ -662,6 +717,77 @@
             } catch (error) {
                 messageDiv.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
             }
+        });
+
+        let allKeys = [];
+        
+        document.getElementById('listKeysForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const resultDiv = document.getElementById('listKeysResult');
+            const searchBox = document.getElementById('keySearchBox');
+            
+            try {
+                const response = await fetch('/listKeys', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.items) {
+                    if (result.items.length === 0) {
+                        resultDiv.innerHTML = '<div class="message success">No keys found in cache</div>';
+                        searchBox.style.display = 'none';
+                    } else {
+                        allKeys = result.items.map(item => item.key);
+                        displayKeys(allKeys);
+                        searchBox.style.display = 'block';
+                    }
+                } else {
+                    resultDiv.innerHTML = `<div class="message error">${result.error}</div>`;
+                    searchBox.style.display = 'none';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
+                searchBox.style.display = 'none';
+            }
+        });
+        
+        function displayKeys(keys) {
+            const resultDiv = document.getElementById('listKeysResult');
+            let html = '<div class="result">';
+            html += `<div style="margin-bottom: 10px;"><strong>Total: ${keys.length} keys</strong></div>`;
+            keys.forEach(key => {
+                html += `<div>${key}</div>`;
+            });
+            html += '</div>';
+            resultDiv.innerHTML = html;
+        }
+        
+        document.getElementById('keySearchBox').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredKeys = allKeys.filter(key => key.toLowerCase().includes(searchTerm));
+            displayKeys(filteredKeys);
+        });
+        
+        let multipleResults = [];
+        
+        document.getElementById('multipleSearchBox').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const resultDiv = document.getElementById('getMultipleResult');
+            const filteredResults = multipleResults.filter(item => 
+                item.key.toLowerCase().includes(searchTerm) || 
+                item.value.toLowerCase().includes(searchTerm)
+            );
+            
+            let html = '<div class="result">';
+            filteredResults.forEach(item => {
+                html += `<div><strong>${item.key}:</strong> ${item.value}</div>`;
+            });
+            html += '</div>';
+            resultDiv.innerHTML = html;
         });
 
     </script>

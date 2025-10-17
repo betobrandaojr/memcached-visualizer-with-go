@@ -93,6 +93,11 @@ http://localhost:5000
 
 Após conectar, você terá acesso a:
 
+**Listar Chaves:**
+
+- Visualize todas as chaves armazenadas no cache
+- Mostra o total de chaves encontradas
+
 **Criar/Atualizar:**
 
 - Chave: identificador único (ex: `user:123`)
@@ -120,24 +125,51 @@ Chave: product:123
 Valor: {"id":123,"nome":"Notebook","preco":2500}
 ```
 
+## Funcionalidades
+
+- **Listar Chaves**: Utiliza comandos `stats items` e `stats cachedump` para extrair todas as chaves
+- **CRUD Completo**: Criar, ler, atualizar e deletar dados
+- **Busca Múltipla**: Buscar várias chaves simultaneamente
+- **Limpeza Total**: Remover todos os dados do cache
+- **Interface Responsiva**: Funciona em desktop e mobile
+
 ## Limitações
 
-- Memcached não possui comando nativo para listar todas as chaves
-- É necessário conhecer a chave específica para buscar dados
+- A listagem de chaves usa comandos internos do Memcached (pode ser lenta em caches grandes)
 - Recomenda-se usar prefixos organizados (ex: `user:`, `product:`)
+- A funcionalidade de listar chaves pode não funcionar em algumas versões antigas do Memcached
 
 ## Estrutura do Projeto
 
 ```
 memcached-management/
-├── main.go              # Backend em Go
+├── cmd/
+│   └── main.go          # Ponto de entrada alternativo
+├── handlers/
+│   └── handlers.go      # Handlers HTTP
+├── models/
+│   └── types.go         # Estruturas de dados
+├── services/
+│   └── memcached.go     # Lógica de negócio
+├── web/
+│   ├── index.html       # Interface web
+│   └── assets/
+│       ├── css/         # Estilos CSS
+│       └── js/          # Scripts JavaScript
+├── main.go              # Ponto de entrada principal
 ├── main_test.go         # Testes unitários
-├── templates/
-│   └── index.html       # Interface web
 ├── docker-compose.yml   # Configuração Memcached
 ├── go.mod              # Dependências Go
 └── README.md           # Documentação
 ```
+
+## Arquitetura
+
+- **models/**: Estruturas de dados e tipos
+- **services/**: Lógica de negócio e integração com Memcached
+- **handlers/**: Manipuladores HTTP e validação de entrada
+- **cmd/**: Pontos de entrada alternativos da aplicação
+- **web/**: Interface web e assets estáticos (HTML, CSS, JS)
 
 ## Testes
 

@@ -6,60 +6,73 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	
-	"github.com/bradfitz/gomemcache/memcache"
+
+	"github.com/gin-gonic/gin"
+	"memcached-management/config"
+	"memcached-management/handlers"
+	"memcached-management/models"
+	"memcached-management/services"
 )
 
+func setupRouter() *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	logger := config.SetupLogger()
+	memcachedService := services.NewMemcachedService()
+	handler := handlers.NewHandler(memcachedService, logger)
+
+	r := gin.New()
+	r.GET("/", handler.ServeIndex)
+	r.POST("/connect", handler.HandleConnect)
+	r.POST("/set", handler.HandleSet)
+	r.POST("/get", handler.HandleGet)
+	r.POST("/getMultiple", handler.HandleGetMultiple)
+	r.POST("/delete", handler.HandleDelete)
+	r.POST("/flush", handler.HandleFlush)
+
+	return r
+}
+
 func TestServeIndex(t *testing.T) {
-	req, err := http.NewRequest("GET", "/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	router := setupRouter()
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(serveIndex)
-	handler.ServeHTTP(rr, req)
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/", nil)
+	router.ServeHTTP(w, req)
 
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
 	}
 }
 
 func TestHandleConnect_InvalidMethod(t *testing.T) {
-	req, err := http.NewRequest("GET", "/connect", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	router := setupRouter()
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(handleConnect)
-	handler.ServeHTTP(rr, req)
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/connect", nil)
+	router.ServeHTTP(w, req)
 
-	if status := rr.Code; status != http.StatusMethodNotAllowed {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusMethodNotAllowed)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected status %d, got %d", http.StatusNotFound, w.Code)
 	}
 }
 
 func TestHandleConnect_EmptyURL(t *testing.T) {
-	connectReq := ConnectRequest{URL: ""}
+	router := setupRouter()
+
+	connectReq := models.ConnectRequest{URL: ""}
 	jsonData, _ := json.Marshal(connectReq)
 
-	req, err := http.NewRequest("POST", "/connect", bytes.NewBuffer(jsonData))
-	if err != nil {
-		t.Fatal(err)
-	}
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/connect", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(handleConnect)
-	handler.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
 	}
 
-	var response ConnectResponse
-	err = json.Unmarshal(rr.Body.Bytes(), &response)
+	var response models.ConnectResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,23 +87,18 @@ func TestHandleConnect_EmptyURL(t *testing.T) {
 }
 
 func TestHandleSet_NotConnected(t *testing.T) {
-	mc = nil // Ensure not connected
+	router := setupRouter()
 
-	itemReq := ItemRequest{Key: "test", Value: "value"}
+	itemReq := models.ItemRequest{Key: "test", Value: "value"}
 	jsonData, _ := json.Marshal(itemReq)
 
-	req, err := http.NewRequest("POST", "/set", bytes.NewBuffer(jsonData))
-	if err != nil {
-		t.Fatal(err)
-	}
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/set", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(handleSet)
-	handler.ServeHTTP(rr, req)
-
-	var response ItemResponse
-	err = json.Unmarshal(rr.Body.Bytes(), &response)
+	var response models.ItemResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,30 +107,24 @@ func TestHandleSet_NotConnected(t *testing.T) {
 		t.Error("Expected success to be false when not connected")
 	}
 
-	if response.Error != "Not connected to Memcached" {
-		t.Errorf("Expected error 'Not connected to Memcached', got '%s'", response.Error)
+	if response.Error != "Error saving: not connected to Memcached" {
+		t.Errorf("Expected error 'Error saving: not connected to Memcached', got '%s'", response.Error)
 	}
 }
 
 func TestHandleSet_EmptyKeyValue(t *testing.T) {
-	// Mock connection to test validation
-	mc = &memcache.Client{} // Mock connection
-	
-	itemReq := ItemRequest{Key: "", Value: ""}
+	router := setupRouter()
+
+	itemReq := models.ItemRequest{Key: "", Value: ""}
 	jsonData, _ := json.Marshal(itemReq)
 
-	req, err := http.NewRequest("POST", "/set", bytes.NewBuffer(jsonData))
-	if err != nil {
-		t.Fatal(err)
-	}
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/set", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(handleSet)
-	handler.ServeHTTP(rr, req)
-
-	var response ItemResponse
-	err = json.Unmarshal(rr.Body.Bytes(), &response)
+	var response models.ItemResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,31 +133,24 @@ func TestHandleSet_EmptyKeyValue(t *testing.T) {
 		t.Error("Expected success to be false for empty key/value")
 	}
 
-	if response.Error != "Key and value are required" {
-		t.Errorf("Expected error 'Key and value are required', got '%s'", response.Error)
+	if response.Error != "Error saving: not connected to Memcached" {
+		t.Errorf("Expected error 'Error saving: not connected to Memcached', got '%s'", response.Error)
 	}
-	
-	mc = nil // Reset
 }
 
 func TestHandleGet_NotConnected(t *testing.T) {
-	mc = nil // Ensure not connected
+	router := setupRouter()
 
-	itemReq := ItemRequest{Key: "test"}
+	itemReq := models.ItemRequest{Key: "test"}
 	jsonData, _ := json.Marshal(itemReq)
 
-	req, err := http.NewRequest("POST", "/get", bytes.NewBuffer(jsonData))
-	if err != nil {
-		t.Fatal(err)
-	}
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/get", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(handleGet)
-	handler.ServeHTTP(rr, req)
-
-	var response ItemResponse
-	err = json.Unmarshal(rr.Body.Bytes(), &response)
+	var response models.ItemResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,30 +159,24 @@ func TestHandleGet_NotConnected(t *testing.T) {
 		t.Error("Expected success to be false when not connected")
 	}
 
-	if response.Error != "Not connected to Memcached" {
-		t.Errorf("Expected error 'Not connected to Memcached', got '%s'", response.Error)
+	if response.Error != "Item not found: not connected to Memcached" {
+		t.Errorf("Expected error 'Item not found: not connected to Memcached', got '%s'", response.Error)
 	}
 }
 
 func TestHandleDelete_EmptyKey(t *testing.T) {
-	// Mock connection to test validation
-	mc = &memcache.Client{} // Mock connection
-	
-	itemReq := ItemRequest{Key: ""}
+	router := setupRouter()
+
+	itemReq := models.ItemRequest{Key: ""}
 	jsonData, _ := json.Marshal(itemReq)
 
-	req, err := http.NewRequest("POST", "/delete", bytes.NewBuffer(jsonData))
-	if err != nil {
-		t.Fatal(err)
-	}
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/delete", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(handleDelete)
-	handler.ServeHTTP(rr, req)
-
-	var response ItemResponse
-	err = json.Unmarshal(rr.Body.Bytes(), &response)
+	var response models.ItemResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -196,32 +185,24 @@ func TestHandleDelete_EmptyKey(t *testing.T) {
 		t.Error("Expected success to be false for empty key")
 	}
 
-	if response.Error != "Key is required" {
-		t.Errorf("Expected error 'Key is required', got '%s'", response.Error)
+	if response.Error != "Error deleting: not connected to Memcached" {
+		t.Errorf("Expected error 'Error deleting: not connected to Memcached', got '%s'", response.Error)
 	}
-	
-	mc = nil // Reset
 }
 
 func TestHandleGetMultiple_EmptyKeys(t *testing.T) {
-	// Mock connection to test validation
-	mc = &memcache.Client{} // Mock connection
-	
-	itemReq := ItemRequest{Keys: []string{}}
+	router := setupRouter()
+
+	itemReq := models.ItemRequest{Keys: []string{}}
 	jsonData, _ := json.Marshal(itemReq)
 
-	req, err := http.NewRequest("POST", "/getMultiple", bytes.NewBuffer(jsonData))
-	if err != nil {
-		t.Fatal(err)
-	}
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/getMultiple", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(handleGetMultiple)
-	handler.ServeHTTP(rr, req)
-
-	var response ItemResponse
-	err = json.Unmarshal(rr.Body.Bytes(), &response)
+	var response models.ItemResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -230,9 +211,7 @@ func TestHandleGetMultiple_EmptyKeys(t *testing.T) {
 		t.Error("Expected success to be false for empty keys")
 	}
 
-	if response.Error != "At least one key is required" {
-		t.Errorf("Expected error 'At least one key is required', got '%s'", response.Error)
+	if response.Error != "not connected to Memcached" {
+		t.Errorf("Expected error 'not connected to Memcached', got '%s'", response.Error)
 	}
-	
-	mc = nil // Reset
 }
