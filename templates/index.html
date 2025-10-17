@@ -197,9 +197,9 @@
         }
         .crud-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+            grid-template-columns: repeat(6, 1fr);
             grid-template-rows: 1fr;
-            gap: 25px;
+            gap: 20px;
             flex: 1;
             height: 100%;
         }
@@ -213,11 +213,12 @@
         .crud-item {
             background: rgba(55, 71, 79, 0.3);
             border-radius: 12px;
-            padding: 25px;
+            padding: 20px;
             border: 1px solid rgba(100, 181, 246, 0.1);
             display: flex;
             flex-direction: column;
             min-height: 0;
+            min-width: 200px;
         }
         .crud-item h3 {
             color: #90caf9;
@@ -262,7 +263,7 @@
         @media (max-width: 768px) {
             .crud-grid {
                 grid-template-columns: 1fr;
-                grid-template-rows: repeat(5, auto);
+                grid-template-rows: repeat(6, auto);
             }
             .header h1 {
                 font-size: 2rem;
@@ -373,6 +374,15 @@
                             <button type="submit" class="btn-danger">Delete</button>
                         </form>
                         <div id="deleteMessage"></div>
+                    </div>
+
+                    <div class="crud-item">
+                        <h3>Clear All</h3>
+                        <form id="flushForm">
+                            <p style="color: #b0bec5; margin-bottom: 15px; font-size: 14px;">This will delete ALL keys from the cache</p>
+                            <button type="submit" class="btn-danger">Clear All Keys</button>
+                        </form>
+                        <div id="flushMessage"></div>
                     </div>
                 </div>
             </div>
@@ -626,6 +636,33 @@
             }
         });
 
+        document.getElementById('flushForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const messageDiv = document.getElementById('flushMessage');
+            
+            if (!confirm('Are you sure you want to delete ALL keys from the cache? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/flush', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    messageDiv.innerHTML = `<div class="message success">${result.message}</div>`;
+                } else {
+                    messageDiv.innerHTML = `<div class="message error">${result.error}</div>`;
+                }
+            } catch (error) {
+                messageDiv.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
+            }
+        });
 
     </script>
 </body>

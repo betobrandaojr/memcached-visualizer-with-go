@@ -47,6 +47,7 @@ func main() {
 	http.HandleFunc("/get", handleGet)
 	http.HandleFunc("/getMultiple", handleGetMultiple)
 	http.HandleFunc("/delete", handleDelete)
+	http.HandleFunc("/flush", handleFlush)
 
 	fmt.Println("Server running on http://localhost:5000")
 	if err := http.ListenAndServe(":5000", nil); err != nil {
@@ -283,5 +284,28 @@ func handleGetMultiple(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := ItemResponse{Success: true, Items: items}
+	json.NewEncoder(w).Encode(response)
+}
+func handleFlush(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	if mc == nil {
+		response := ItemResponse{Success: false, Error: "Not connected to Memcached"}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	if err := mc.FlushAll(); err != nil {
+		response := ItemResponse{Success: false, Error: fmt.Sprintf("Error flushing cache: %v", err)}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	response := ItemResponse{Success: true, Message: "All items cleared successfully!"}
 	json.NewEncoder(w).Encode(response)
 }
