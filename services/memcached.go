@@ -35,6 +35,11 @@ func (s *MemcachedService) Connect(url string) error {
 		host += ":11211"
 	}
 
+	// Normalize common Docker hostnames to localhost
+	if strings.HasPrefix(host, "memcached:") {
+		host = strings.Replace(host, "memcached:", "localhost:", 1)
+	}
+
 	s.host = host
 	s.client = memcache.New(host)
 	s.client.Timeout = 5 * time.Second

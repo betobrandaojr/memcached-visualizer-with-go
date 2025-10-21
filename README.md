@@ -72,7 +72,7 @@ go mod tidy
 3. Execute a aplicação:
 
 ```bash
-go run main.go
+go run cmd/main.go
 ```
 
 4. Acesse no navegador:
@@ -85,7 +85,11 @@ http://localhost:5000
 
 ### 1. Conectar ao Memcached
 
-- Digite a URL no formato `host:porta` (ex: `localhost:11211`)
+- Digite a URL no formato `host:porta`
+- **Exemplos válidos:**
+  - `localhost:11211` (recomendado)
+  - `memcached:11211` (será convertido automaticamente)
+  - `127.0.0.1:11211`
 - Clique em "Conectar"
 - Aguarde confirmação da conexão
 
@@ -144,20 +148,25 @@ Valor: {"id":123,"nome":"Notebook","preco":2500}
 ```
 memcached-management/
 ├── cmd/
-│   └── main.go          # Ponto de entrada alternativo
+│   └── main.go          # Ponto de entrada da aplicação
 ├── handlers/
 │   └── handlers.go      # Handlers HTTP
 ├── models/
-│   └── types.go         # Estruturas de dados
+│   ├── types.go         # Estruturas de dados
+│   └── types_test.go    # Testes dos modelos
 ├── services/
-│   └── memcached.go     # Lógica de negócio
+│   ├── memcached.go     # Lógica de negócio
+│   └── memcached_test.go# Testes do serviço
+├── tests/
+│   ├── integration/     # Testes de integração
+│   │   └── api_test.go
+│   └── unit/           # Testes unitários específicos
 ├── web/
 │   ├── index.html       # Interface web
 │   └── assets/
 │       ├── css/         # Estilos CSS
 │       └── js/          # Scripts JavaScript
-├── main.go              # Ponto de entrada principal
-├── main_test.go         # Testes unitários
+├── Makefile            # Comandos de build e teste
 ├── docker-compose.yml   # Configuração Memcached
 ├── go.mod              # Dependências Go
 └── README.md           # Documentação
@@ -168,13 +177,44 @@ memcached-management/
 - **models/**: Estruturas de dados e tipos
 - **services/**: Lógica de negócio e integração com Memcached
 - **handlers/**: Manipuladores HTTP e validação de entrada
-- **cmd/**: Pontos de entrada alternativos da aplicação
+- **cmd/**: Ponto de entrada da aplicação
 - **web/**: Interface web e assets estáticos (HTML, CSS, JS)
 
 ## Testes
 
-Execute os testes unitários:
+A aplicação possui uma estrutura completa de testes:
 
+### Executar todos os testes:
 ```bash
-go test -v
+make test
+# ou
+go test -v ./...
+```
+
+### Executar apenas testes unitários:
+```bash
+make test-unit
+# ou
+go test -v ./services ./models
+```
+
+### Executar apenas testes de integração:
+```bash
+make test-integration
+# ou
+go test -v ./tests/integration
+```
+
+### Executar testes com cobertura:
+```bash
+make test-coverage
+```
+
+### Outros comandos úteis:
+```bash
+make build          # Compilar aplicação
+make run            # Executar aplicação
+make docker-up      # Iniciar Memcached
+make docker-down    # Parar Memcached
+make clean          # Limpar arquivos de build
 ```

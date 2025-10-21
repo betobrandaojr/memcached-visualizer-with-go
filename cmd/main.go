@@ -22,6 +22,7 @@ func main() {
 	r.POST("/getMultiple", handler.HandleGetMultiple)
 	r.POST("/delete", handler.HandleDelete)
 	r.POST("/flush", handler.HandleFlush)
+	r.POST("/listKeys", handler.HandleListKeys)
 
 	logger.Info("Server starting on http://localhost:5000")
 	r.Run(":5000")

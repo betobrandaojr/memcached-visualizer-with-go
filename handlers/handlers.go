@@ -23,7 +23,7 @@ func NewHandler(memcachedService *services.MemcachedService, logger *logrus.Logg
 }
 
 func (h *Handler) ServeIndex(c *gin.Context) {
-	c.File("web/index.html")
+	c.File("./web/index.html")
 }
 
 func (h *Handler) HandleConnect(c *gin.Context) {

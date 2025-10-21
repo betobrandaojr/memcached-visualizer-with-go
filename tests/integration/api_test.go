@@ -1,4 +1,4 @@
-package main
+package integration
 
 import (
 	"bytes"
@@ -28,6 +28,7 @@ func setupRouter() *gin.Engine {
 	r.POST("/getMultiple", handler.HandleGetMultiple)
 	r.POST("/delete", handler.HandleDelete)
 	r.POST("/flush", handler.HandleFlush)
+	r.POST("/listKeys", handler.HandleListKeys)
 
 	return r
 }
@@ -86,6 +87,19 @@ func TestHandleConnect_EmptyURL(t *testing.T) {
 	}
 }
 
+func TestHandleConnect_InvalidJSON(t *testing.T) {
+	router := setupRouter()
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/connect", bytes.NewBuffer([]byte("invalid json")))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
 func TestHandleSet_NotConnected(t *testing.T) {
 	router := setupRouter()
 
@@ -105,32 +119,6 @@ func TestHandleSet_NotConnected(t *testing.T) {
 
 	if response.Success {
 		t.Error("Expected success to be false when not connected")
-	}
-
-	if response.Error != "Error saving: not connected to Memcached" {
-		t.Errorf("Expected error 'Error saving: not connected to Memcached', got '%s'", response.Error)
-	}
-}
-
-func TestHandleSet_EmptyKeyValue(t *testing.T) {
-	router := setupRouter()
-
-	itemReq := models.ItemRequest{Key: "", Value: ""}
-	jsonData, _ := json.Marshal(itemReq)
-
-	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("POST", "/set", bytes.NewBuffer(jsonData))
-	req.Header.Set("Content-Type", "application/json")
-	router.ServeHTTP(w, req)
-
-	var response models.ItemResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if response.Success {
-		t.Error("Expected success to be false for empty key/value")
 	}
 
 	if response.Error != "Error saving: not connected to Memcached" {
@@ -164,36 +152,10 @@ func TestHandleGet_NotConnected(t *testing.T) {
 	}
 }
 
-func TestHandleDelete_EmptyKey(t *testing.T) {
+func TestHandleGetMultiple_NotConnected(t *testing.T) {
 	router := setupRouter()
 
-	itemReq := models.ItemRequest{Key: ""}
-	jsonData, _ := json.Marshal(itemReq)
-
-	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("POST", "/delete", bytes.NewBuffer(jsonData))
-	req.Header.Set("Content-Type", "application/json")
-	router.ServeHTTP(w, req)
-
-	var response models.ItemResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if response.Success {
-		t.Error("Expected success to be false for empty key")
-	}
-
-	if response.Error != "Error deleting: not connected to Memcached" {
-		t.Errorf("Expected error 'Error deleting: not connected to Memcached', got '%s'", response.Error)
-	}
-}
-
-func TestHandleGetMultiple_EmptyKeys(t *testing.T) {
-	router := setupRouter()
-
-	itemReq := models.ItemRequest{Keys: []string{}}
+	itemReq := models.ItemRequest{Keys: []string{"key1", "key2"}}
 	jsonData, _ := json.Marshal(itemReq)
 
 	w := httptest.NewRecorder()
@@ -208,10 +170,82 @@ func TestHandleGetMultiple_EmptyKeys(t *testing.T) {
 	}
 
 	if response.Success {
-		t.Error("Expected success to be false for empty keys")
+		t.Error("Expected success to be false when not connected")
 	}
 
 	if response.Error != "not connected to Memcached" {
 		t.Errorf("Expected error 'not connected to Memcached', got '%s'", response.Error)
+	}
+}
+
+func TestHandleDelete_NotConnected(t *testing.T) {
+	router := setupRouter()
+
+	itemReq := models.ItemRequest{Key: "test"}
+	jsonData, _ := json.Marshal(itemReq)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/delete", bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
+
+	var response models.ItemResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if response.Success {
+		t.Error("Expected success to be false when not connected")
+	}
+
+	if response.Error != "Error deleting: not connected to Memcached" {
+		t.Errorf("Expected error 'Error deleting: not connected to Memcached', got '%s'", response.Error)
+	}
+}
+
+func TestHandleFlush_NotConnected(t *testing.T) {
+	router := setupRouter()
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/flush", bytes.NewBuffer([]byte("{}")))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
+
+	var response models.ItemResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if response.Success {
+		t.Error("Expected success to be false when not connected")
+	}
+
+	if response.Error != "Error flushing cache: not connected to Memcached" {
+		t.Errorf("Expected error 'Error flushing cache: not connected to Memcached', got '%s'", response.Error)
+	}
+}
+
+func TestHandleListKeys_NotConnected(t *testing.T) {
+	router := setupRouter()
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/listKeys", bytes.NewBuffer([]byte("{}")))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
+
+	var response models.ItemResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if response.Success {
+		t.Error("Expected success to be false when not connected")
+	}
+
+	if response.Error != "Error listing keys: not connected to Memcached" {
+		t.Errorf("Expected error 'Error listing keys: not connected to Memcached', got '%s'", response.Error)
 	}
 }
